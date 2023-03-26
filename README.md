@@ -6,7 +6,7 @@ This repository contains code for an AWS EMR data processing pipeline that perfo
 
 The repository contains the following files:
 
-`lambda_function.py`: This is the AWS Lambda function that is triggered by S3 when files arrive in the input bucket. It checks whether all required files are present and triggers an Airflow DAG if they are. If not, it sends an email notification. The send_email.py file is used for sending the email.
+`lambda_function.py`: This is the AWS Lambda function that is triggered by S3 when files arrive in the input bucket. It checks whether all required files are present and triggers an Airflow DAG if they are. If not, it sends an email notification. The `send_email.py` file is used for sending the email.
 
 `midterm_dag.py`: This file contains the code for the Airflow DAG that creates an EMR cluster for the subsequent processing using Spark and monitors the execution.
 

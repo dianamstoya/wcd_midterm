@@ -1,0 +1,5 @@
+Power BI Dashboard file (not uploaded due to file size limitation):
+https://drive.google.com/file/d/1JbnqxC2KxiPRYhMDziVSQQdX-fOllcbh/view?usp=share_link
+
+Github repository:
+https://github.com/dianamstoya/wcd_midterm

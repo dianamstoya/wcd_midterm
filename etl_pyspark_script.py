@@ -52,9 +52,15 @@ product = spark.read \
     .csv(product_file)
 # END: read original CSV files
 
+# fix data types
+inventory = inventory.withColumn('CAL_DT', col('CAL_DT').cast(DateType())) \
+    .withColumn('NEXT_DELIVERY_DT', col('NEXT_DELIVERY_DT').cast(DateType()))
+
 sales = sales.withColumn('TRANS_DT', to_date(col('TRANS_DT')))
+
+# start aggregating data
 sales.createOrReplaceTempView("tbl_sales")
-# creating aggregated sales table
+# creating aggregated sales table on level DATE + STORE + PRODUCT
 df_sum_sales_qty = spark.sql(
     """SELECT 
             TRANS_DT,
@@ -74,11 +80,8 @@ df_sum_sales_qty = spark.sql(
 # create slice of calendar table (cal) for joining into the fact tables (week #)
 calendar = calendar.withColumn('CAL_DT', col('CAL_DT').cast(DateType()))
 cal = calendar.withColumnRenamed('CAL_DT', 'Date')
-
+# join the aggregated tables with the calendar slice (for adding year-week information)
 sales_aggr = df_sum_sales_qty.join(cal, df_sum_sales_qty.TRANS_DT == cal.Date, 'left')
-
-inventory = inventory.withColumn('CAL_DT', col('CAL_DT').cast(DateType())) \
-    .withColumn('NEXT_DELIVERY_DT', col('NEXT_DELIVERY_DT').cast(DateType()))
 
 inventory_eow = inventory.join(cal, inventory.CAL_DT == cal.Date, 'left')
 
@@ -100,7 +103,7 @@ inventory_eow = inventory_eow.join(
     & (inventory_eow.PROD_KEY == inv_max_day._PROD_KEY),
     how='inner'
 )
-# getting rid of unnecessary cols and renaming for joins
+# getting rid of unnecessary columns and renaming for joins
 inventory_eow = inventory_eow \
     .withColumnRenamed('INVENTORY_ON_HAND_QTY', 'stock_lvl_eow') \
     .withColumnRenamed('INVENTORY_ON_ORDER_QTY', 'stock_on_order_eow') \
@@ -127,8 +130,9 @@ inv_forjoin = inventory \
     .withColumnRenamed("PROD_KEY", "_PROD_KEY") \
     .withColumnRenamed("STORE_KEY", "_STORE_KEY") \
     .withColumnRenamed("CAL_DT", "_CAL_DT")
-
+# add year weeek info
 inv_forjoin = inv_forjoin.join(cal, inv_forjoin._CAL_DT == cal.Date)
+# then aggregate by week, store and product
 inv_forjoin = inv_forjoin.groupBy("YR_WK_NUM", "_STORE_KEY", "_PROD_KEY") \
     .agg(F.sum("OUT_OF_STOCK_FLG").alias("No_Stock_Instances")) \
     .withColumnRenamed("YR_WK_NUM", "_YR_WK_NUM")
@@ -146,7 +150,7 @@ agg_df = sales_aggr.join(inv_forjoin,
                         & (sales_aggr.YR_WK_NUM == inv_forjoin._YR_WK_NUM),
                         how='inner'
                          )
-
+# drop redundant columns
 agg_df2 = agg_df.drop('_PROD_KEY', '_STORE_KEY', '_YR_WK_NUM')
 
 agg_df3 = agg_df2.join(
